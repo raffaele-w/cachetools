@@ -8,6 +8,16 @@ try:
 except ImportError:
     from dummy_threading import RLock
 
+
+class _NLock:
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
+
+_nlock = _NLock()
+
 __version__ = '0.2.0'
 
 
@@ -150,7 +160,9 @@ def _makekey_typed(args, kwargs):
     return key
 
 
-def _cachedfunc(cache, makekey, lock):
+def _cachedfunc(cache, typed, lock):
+    makekey = _makekey_typed if typed else _makekey
+
     def decorator(func):
         count = [0, 0]
 
@@ -187,10 +199,7 @@ def lru_cache(maxsize=128, typed=False, lock=RLock):
     saves up to the `maxsize` most recent calls based on a Least
     Recently Used (LRU) algorithm.
     """
-    if typed:
-        return _cachedfunc(LRUCache(maxsize), _makekey_typed, lock())
-    else:
-        return _cachedfunc(LRUCache(maxsize), _makekey, lock())
+    return _cachedfunc(LRUCache(maxsize), typed, lock() if lock else _nlock)
 
 
 def lfu_cache(maxsize=128, typed=False, lock=RLock):
@@ -198,10 +207,7 @@ def lfu_cache(maxsize=128, typed=False, lock=RLock):
     saves up to the `maxsize` most recent calls based on a Least
     Frequently Used (LFU) algorithm.
     """
-    if typed:
-        return _cachedfunc(LFUCache(maxsize), _makekey_typed, lock())
-    else:
-        return _cachedfunc(LFUCache(maxsize), _makekey, lock())
+    return _cachedfunc(LFUCache(maxsize), typed, lock() if lock else _nlock)
 
 
 def rr_cache(maxsize=128, typed=False, lock=RLock):
@@ -209,10 +215,7 @@ def rr_cache(maxsize=128, typed=False, lock=RLock):
     saves up to the `maxsize` most recent calls based on a Random
     Replacement (RR) algorithm.
     """
-    if typed:
-        return _cachedfunc(RRCache(maxsize), _makekey_typed, lock())
-    else:
-        return _cachedfunc(RRCache(maxsize), _makekey, lock())
+    return _cachedfunc(RRCache(maxsize), typed, lock() if lock else _nlock)
 
 
 def _cachedmethod(getcache, makekey, lock):

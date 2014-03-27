@@ -7,6 +7,10 @@ from cachetools import LRUCache, lru_cache
 def cached(n):
     return n
 
+@lru_cache(maxsize=2, typed=True, lock=None)
+def cached_typed(n):
+    return n
+
 
 class LRUCacheTest(unittest.TestCase):
 
@@ -40,3 +44,15 @@ class LRUCacheTest(unittest.TestCase):
         self.assertEqual(cached.cache_info(), (0, 1, 2, 1))
         self.assertEqual(cached(1), 1)
         self.assertEqual(cached.cache_info(), (1, 1, 2, 1))
+        self.assertEqual(cached(1.0), 1.0)
+        self.assertEqual(cached.cache_info(), (2, 1, 2, 1))
+
+    def test_typed_decorator(self):
+        self.assertEqual(cached_typed(1), 1)
+        self.assertEqual(cached_typed.cache_info(), (0, 1, 2, 1))
+        self.assertEqual(cached_typed(1), 1)
+        self.assertEqual(cached_typed.cache_info(), (1, 1, 2, 1))
+        self.assertEqual(cached_typed(1.0), 1.0)
+        self.assertEqual(cached_typed.cache_info(), (1, 2, 2, 2))
+        self.assertEqual(cached_typed(1.0), 1.0)
+        self.assertEqual(cached_typed.cache_info(), (2, 2, 2, 2))
