@@ -8,7 +8,7 @@ try:
 except ImportError:
     from dummy_threading import RLock
 
-__version__ = '0.1.0'
+__version__ = '0.2.0'
 
 
 class Cache(collections.MutableMapping):
@@ -213,3 +213,45 @@ def rr_cache(maxsize=128, typed=False, lock=RLock):
         return _cachedfunc(RRCache(maxsize), _makekey_typed, lock())
     else:
         return _cachedfunc(RRCache(maxsize), _makekey, lock())
+
+
+def _cachedmethod(getcache, makekey, lock):
+    def decorator(method):
+        count = [0, 0]
+
+        @functools.wraps(method)
+        def wrapper(self, *args, **kwargs):
+            cache = getcache(self)
+            key = makekey(args, kwargs)
+            with lock:
+                try:
+                    result = cache[key]
+                    count[0] += 1
+                    return result
+                except KeyError:
+                    count[1] += 1
+            result = method(*args, **kwargs)
+            with lock:
+                cache[key] = result
+            return result
+
+        def cache_info(self):
+            cache = getcache(self)
+            return CacheInfo(count[0], count[1], cache.maxsize, len(cache))
+
+        def cache_clear(self):
+            cache = getcache(self)
+            cache.clear(self)
+
+        wrapper.cache_info = cache_info
+        wrapper.cache_clear = cache_clear
+        return wrapper
+
+    return decorator
+
+
+def cachedmethod(cache, typed=False, lock=RLock):
+    if typed:
+        return _cachedmethod(cache, _makekey_typed, lock())
+    else:
+        return _cachedmethod(cache, _makekey, lock())
